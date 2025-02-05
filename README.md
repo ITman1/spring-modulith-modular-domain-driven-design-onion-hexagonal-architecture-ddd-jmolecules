@@ -21,7 +21,7 @@ own domain model and corresponding other layers.
 ### Onion Architecture
 
 Innermost layers are independent of outer layers. The core layers are divided into 3 rings:
-- **Domain Ring** – Java business domain model + basic validations / operations on top of given domain – `@DomainRing [ONION]`,
+- **Domain Ring** – Java business domain model + basic model validations / operations on top of given domain – `@DomainRing [ONION]`,
   might be devided into `@DomainModelRing [ONION]` and `@DomainServiceRing [ONION]`
 - **Application Ring** – Orchestration/workflow of current domain or other dependant domains – `@ApplicationRing [ONION]` or `@ApplicationServiceRing [ONION]`
 - **Infrastructure Ring** – External interfaces, integrations like REST APIs, JPA, etc. – `@InfrastructureRing [ONION]`
@@ -33,16 +33,43 @@ Innermost layers are independent of outer layers. The core layers are divided in
 
 ### Hexagonal Architecture
 
-Puts inputs and outputs at the edges of design. Business logic does not depend on whether we expose a REST or a SOAP API,
-and it does not depend on where we get data from – a database, a microservice API exposed via SOAP or REST.
+Puts inputs and outputs at the edges of design, divides infrastructure layer of onion architecture. 
+Business logic does not depend on whether we expose a REST or a SOAP API, and it does not depend on where we get data
+from – a database, a microservice API exposed via SOAP or REST.
 
 Plays an integral role if we would want to split our monolith into external (micro)services. In such cases we
 can only replace our adapters and not the whole application logic when using common Layered/N-tiered architecture.
 
 **We recognize:**
-- **Ports and adapters** – The interface used to inverse the dependency is the port while the implementation of the interface is the adapter – `@(Primary|Secondary)Adapter [HEXAGONAL]`.
-- **Primary, driving or inbound ports** – what the domain can do, what services it exposes to the outside world – `@PrimaryPort [HEXAGONAL]`
-- **Secondary, driven or outbound ports** – what the domain can do, what services it exposes to the outside world – `@SecondaryPort [HEXAGONAL]`
+- **Ports and adapters** – The interface used to inverse the dependency is the port while the implementation of the
+  interface is the adapter. This is the simplest explanation and also the wrong, opinionated as we have to distinguish
+  what use case, what type of adapter / port we have! Ports are not always interfaces and Adapters are not always their 
+- implementations.
+- **Primary, driving or inbound ports**
+  - What the domain can do, what services it exposes to the outside world – `@PrimaryPort [HEXAGONAL]`
+  - Primary port can be a class implementing some use case while Primary Adapter uses this class.
+  - Primary port might be also an abstract class, interface where adapter implements this interface.
+  - All this means that primary port is simply just only our entry point to the application services and marks the input boundary.
+  - Having primary port as a class is fine because having multiple implementations for the same inbound API in same version
+    does not make sense which means that Java interface is just only a code boilerplate.
+- **Secondary, driven or outbound ports** 
+  - What services must exist for the domain to do its job – `@SecondaryPort [HEXAGONAL]`
+  - Secondary port must be an interface while Secondary adapter its implementation to inverse the dependency
+  - Eg. we might have ports for storing domain into storage, 
+- **Adapters**
+  - Glues the technology to fulfill our use cases - `@(Primary|Secondary)Adapter [HEXAGONAL]`
+
+**Java packages examples for contract domain infrastructure:**
+- `com.example.loans.contract.infrastructure.inbound.java` - Java Adapter for modulith purposes
+- `com.example.loans.contract.infrastructure.inbound.rest` - to expose REST API - `@RestController`
+- `com.example.loans.contract.infrastructure.inbound.soap` - to expose SOAP API - `@Endpoint`
+- `com.example.loans.contract.infrastructure.inbound.rabbit` - RabbitMQ drivers and listeners
+- `com.example.loans.contract.infrastructure.inbound.kafka` - Kafka drivers and consumers
+- `com.example.loans.contract.infrastructure.outbound.document` - Connector with document domain (in modulith can integrate via Java inbound)
+- `com.example.loans.contract.infrastructure.outbound.ticket` - Connector with ticket domain
+- `com.example.loans.contract.infrastructure.outbound.jpa` - JPA, Hibernate, Spring Data
+- `com.example.loans.contract.infrastructure.outbound.rabbit` - RabbitMQ drivers and publishers
+- `com.example.loans.contract.infrastructure.outbound.kafka` - Kafka drivers and publishers
 
 ### Modular
 
@@ -76,6 +103,8 @@ Code is divided into modules based on its business domain and its purpose. We di
 
 ## Applied coding patterns
 
+- **Domain model, domain services, application services are not allowed to communicate with other domains directly**
+  - Each domain communicate with each ONLY via theirs ports and adapters
 - Create **Java interfaces by design only for ONION and HEXAGONAL layers**
     - Java interfaces for Application and Domain Services are not needed in the most cases
         - They are adding non-necessary boilerplate code
